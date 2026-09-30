@@ -11,5 +11,5 @@ data class SavedDeckEntity(
   val strategy: String,
   val cardListSerialized: String,
   val totalCards: Int = 20,
-  val createdAt: Long = System.currentTimeMillis()
+  val createdAt: Long = System.currentTimeMillis(),
 )

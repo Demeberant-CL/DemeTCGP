@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.SubcomposeAsyncImage
+import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.example.data.model.PokemonCard
 import com.example.data.util.NetworkUtils
@@ -72,6 +73,7 @@ fun CardItemView(
   onToggleWishlist: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
+  val context = LocalContext.current
   val isOwned = ownedCount > 0
 
   // Consumir el StateFlow reactivo de red
@@ -84,21 +86,35 @@ fun CardItemView(
   val currentUrl = candidateUrls.getOrNull(currentUrlIndex) ?: ""
   Log.d("CoilDebug", "Procesando carta ${card.id} (${card.name}) [índice ${currentUrlIndex + 1}/${candidateUrls.size}]: URL = '$currentUrl' | En línea: $isOnline")
 
+  // Optimización de ImageRequest con memoria en caché estable y política de disco activa
+  val imageRequest = remember(card.id, currentUrl) {
+    ImageRequest.Builder(context)
+      .data(currentUrl)
+      .memoryCacheKey(card.id)
+      .diskCacheKey(card.id)
+      .memoryCachePolicy(CachePolicy.ENABLED)
+      .diskCachePolicy(CachePolicy.ENABLED)
+      .crossfade(enable = true)
+      .build()
+  }
+
   val grayscaleMatrix = remember {
     ColorMatrix().apply { setToSaturation(0f) }
   }
 
-  val typeColor = when (card.type.lowercase()) {
-    "planta" -> Color(0xFF10B981)
-    "fuego" -> Color(0xFFEF4444)
-    "agua" -> Color(0xFF0284C7)
-    "rayo" -> Color(0xFFF59E0B)
-    "psíquico" -> Color(0xFF8B5CF6)
-    "lucha" -> Color(0xFFD97706)
-    "oscuridad" -> Color(0xFF475569)
-    "metal" -> Color(0xFF64748B)
-    "dragón" -> Color(0xFFF97316)
-    else -> Color(0xFF94A3B8)
+  val typeColor = remember(card.type) {
+    when (card.type.lowercase()) {
+      "planta" -> Color(0xFF10B981)
+      "fuego" -> Color(0xFFEF4444)
+      "agua" -> Color(0xFF0284C7)
+      "rayo" -> Color(0xFFF59E0B)
+      "psíquico" -> Color(0xFF8B5CF6)
+      "lucha" -> Color(0xFFD97706)
+      "oscuridad" -> Color(0xFF475569)
+      "metal" -> Color(0xFF64748B)
+      "dragón" -> Color(0xFFF97316)
+      else -> Color(0xFF94A3B8)
+    }
   }
 
   Card(
@@ -120,10 +136,7 @@ fun CardItemView(
     Box(modifier = Modifier.fillMaxSize()) {
       if (isOnline && currentUrl.isNotBlank()) {
         SubcomposeAsyncImage(
-          model = ImageRequest.Builder(LocalContext.current)
-            .data(currentUrl)
-            .crossfade(enable = true)
-            .build(),
+          model = imageRequest,
           contentDescription = card.name,
           contentScale = ContentScale.Crop,
           colorFilter = if (!isOwned) ColorFilter.colorMatrix(grayscaleMatrix) else null,

@@ -1,12 +1,17 @@
 package com.example.ui.components
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.graphics.Bitmap
 import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,6 +26,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -136,25 +142,46 @@ fun DeckQrDialog(
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        Button(
-          onClick = {
-            qrBitmap?.let { bmp ->
-              val success = QrSaver.saveQrToGallery(context, bmp, deckName)
-              if (success) {
-                Toast.makeText(context, "¡QR Guardado exitosamente!", Toast.LENGTH_SHORT).show()
-              } else {
-                Toast.makeText(context, "Error al guardar el código QR en la galería.", Toast.LENGTH_SHORT).show()
-              }
-            }
-          },
-          modifier = Modifier
-            .fillMaxWidth()
-            .height(40.dp),
-          shape = RoundedCornerShape(10.dp),
-          colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
-          enabled = qrBitmap != null,
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-          Text("Guardar en Galería", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+          Button(
+            onClick = {
+              qrBitmap?.let { bmp ->
+                val success = QrSaver.saveQrToGallery(context, bmp, deckName)
+                if (success) {
+                  Toast.makeText(context, "¡QR Guardado en Galería!", Toast.LENGTH_SHORT).show()
+                } else {
+                  Toast.makeText(context, "Error al guardar el código QR.", Toast.LENGTH_SHORT).show()
+                }
+              }
+            },
+            modifier = Modifier
+              .weight(1f)
+              .height(40.dp),
+            shape = RoundedCornerShape(10.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
+            enabled = qrBitmap != null,
+          ) {
+            Text("Guardar QR", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+          }
+
+          OutlinedButton(
+            onClick = {
+              val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+              val payload = PtcgpEncoder.encodeDeckToString(deckCards)
+              val clip = ClipData.newPlainText("Mazo PTCGP", payload)
+              clipboard?.setPrimaryClip(clip)
+              Toast.makeText(context, "¡Código de mazo copiado!", Toast.LENGTH_SHORT).show()
+            },
+            modifier = Modifier
+              .weight(1f)
+              .height(40.dp),
+            shape = RoundedCornerShape(10.dp),
+          ) {
+            Text("Copiar Texto", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+          }
         }
       }
     },

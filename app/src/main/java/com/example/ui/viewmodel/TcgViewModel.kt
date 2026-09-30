@@ -16,8 +16,11 @@ import com.example.data.repository.DeckBuilderEngine
 import com.example.data.repository.DeckCardEntry
 import com.example.data.repository.GeneratedDeck
 import com.example.data.repository.InventoryRepository
+import com.example.data.repository.MetaDeckAiEngine
+import com.example.data.repository.MetaDeckPreset
 import com.example.data.repository.ParsedCsvCard
 import com.example.data.util.ErrorLogManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -32,6 +35,16 @@ enum class CollectionFilterMode {
   OWNED,
   MISSING,
   WISHLIST
+}
+
+data class DeckBuilderUiState(
+  val deckName: String = "Mi Mazo TCG Pocket",
+  val deckCards: List<DeckCardEntry> = emptyList(),
+  val maxDeckSize: Int = 20,
+  val maxCopiesPerCard: Int = 2,
+) {
+  val totalCardCount: Int get() = deckCards.sumOf { it.count }
+  val isComplete: Boolean get() = totalCardCount == maxDeckSize
 }
 
 class TcgViewModel(application: Application) : AndroidViewModel(application) {
@@ -50,13 +63,13 @@ class TcgViewModel(application: Application) : AndroidViewModel(application) {
   val userPreferences: StateFlow<UserPreferences> = preferencesRepository.userPreferencesFlow
     .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UserPreferences())
 
-  // Collection inventory Flow
+  // Collection inventory Flow activado inmediatamente con SharingStarted.Eagerly
   val inventoryList: StateFlow<List<CardWithInventory>> = repository.inventoryFlow
-    .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-  // Saved Decks Flow
+  // Saved Decks Flow activado inmediatamente con SharingStarted.Eagerly
   val savedDecks: StateFlow<List<SavedDeckEntity>> = repository.savedDecksFlow
-    .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
   private val _searchQuery = MutableStateFlow("")
   val searchQuery = _searchQuery.asStateFlow()
@@ -70,7 +83,11 @@ class TcgViewModel(application: Application) : AndroidViewModel(application) {
   private val _csvStatusMessage = MutableStateFlow<String?>(null)
   val csvStatusMessage = _csvStatusMessage.asStateFlow()
 
-  // Deck Builder
+  // Estado Unificado del Deck Builder Interactivo
+  private val _deckBuilderState = MutableStateFlow(DeckBuilderUiState())
+  val deckBuilderState: StateFlow<DeckBuilderUiState> = _deckBuilderState.asStateFlow()
+
+  // Deck Builder IA Clásico
   private val _generatedDeck = MutableStateFlow<GeneratedDeck?>(null)
   val generatedDeck = _generatedDeck.asStateFlow()
 
@@ -90,6 +107,7 @@ class TcgViewModel(application: Application) : AndroidViewModel(application) {
   private val _isAnalyzingMeta = MutableStateFlow(false)
   val isAnalyzingMeta = _isAnalyzingMeta.asStateFlow()
 
+  // Flujo combinado de cartas filtradas activado inmediatamente con SharingStarted.Eagerly
   val filteredCards: StateFlow<List<CardWithInventory>> = combine(
     inventoryList,
     _searchQuery,
@@ -113,10 +131,10 @@ class TcgViewModel(application: Application) : AndroidViewModel(application) {
 
       matchesQuery && matchesPack && matchesFilterMode
     }
-  }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+  }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
   init {
-    viewModelScope.launch {
+    viewModelScope.launch(Dispatchers.IO) {
       try {
         val existing = repository.inventoryFlow.first()
         if (existing.all { it.ownedCount == 0 }) {
@@ -130,6 +148,69 @@ class TcgViewModel(application: Application) : AndroidViewModel(application) {
     }
     runGeminiMetaAnalysis()
     generateDeck("Pikachu ex Turbo")
+  }
+
+  // Deck Builder Unificado Actions
+  fun setCustomDeckName(name: String) {
+    _deckBuilderState.value = _deckBuilderState.value.copy(deckName = name)
+  }
+
+  fun addCardToCurrentDeck(cardWithInv: CardWithInventory): Pair<Boolean, String?> {
+    if (cardWithInv.ownedCount <= 0) {
+      return Pair(false, "No posees copias de esta carta en tu inventario.")
+    }
+    val current = _deckBuilderState.value
+    if (current.totalCardCount >= current.maxDeckSize) {
+      return Pair(false, "El mazo ya tiene ${current.maxDeckSize} cartas (máximo alcanzado).")
+    }
+
+    val currentList = current.deckCards.toMutableList()
+    val existingIndex = currentList.indexOfFirst { it.card.id.equals(cardWithInv.card.id, ignoreCase = true) }
+    val maxAllowed = minOf(cardWithInv.ownedCount, current.maxCopiesPerCard)
+
+    if (existingIndex != -1) {
+      val existing = currentList[existingIndex]
+      if (existing.count < maxAllowed) {
+        currentList[existingIndex] = existing.copy(count = existing.count + 1)
+        _deckBuilderState.value = current.copy(deckCards = currentList)
+        return Pair(true, null)
+      } else {
+        return Pair(false, "Límite máximo de $maxAllowed copias alcanzado para esta carta.")
+      }
+    } else {
+      currentList.add(DeckCardEntry(cardWithInv.card, 1))
+      _deckBuilderState.value = current.copy(deckCards = currentList)
+      return Pair(true, null)
+    }
+  }
+
+  fun removeCardFromCurrentDeck(entry: DeckCardEntry) {
+    val current = _deckBuilderState.value
+    val currentList = current.deckCards.toMutableList()
+    val index = currentList.indexOfFirst { it.card.id.equals(entry.card.id, ignoreCase = true) }
+    if (index != -1) {
+      val existing = currentList[index]
+      if (existing.count > 1) {
+        currentList[index] = existing.copy(count = existing.count - 1)
+      } else {
+        currentList.removeAt(index)
+      }
+      _deckBuilderState.value = current.copy(deckCards = currentList)
+    }
+  }
+
+  fun clearCurrentDeck() {
+    _deckBuilderState.value = _deckBuilderState.value.copy(deckCards = emptyList())
+  }
+
+  fun applyAiPreset(preset: MetaDeckPreset): Int {
+    val currentInv = inventoryList.value
+    val result = MetaDeckAiEngine.generateMetaDeckWithAlternatives(preset, currentInv)
+    _deckBuilderState.value = _deckBuilderState.value.copy(
+      deckName = result.deckName,
+      deckCards = result.entries
+    )
+    return result.replacementCount
   }
 
   // Preferences Actions
@@ -211,7 +292,7 @@ class TcgViewModel(application: Application) : AndroidViewModel(application) {
                 name = name,
                 rarity = rarity,
                 quantity = qty,
-                isRegistered = qty > 0
+                isRegistered = qty > 0,
               )
             )
           }
@@ -319,6 +400,10 @@ class TcgViewModel(application: Application) : AndroidViewModel(application) {
         totalCardCount = savedDeck.totalCards
       )
       _deckBuildPrompt.value = savedDeck.name
+      _deckBuilderState.value = DeckBuilderUiState(
+        deckName = savedDeck.name,
+        deckCards = cardEntries
+      )
     } catch (e: Exception) {
       ErrorLogManager.logError(getApplication(), "LOAD_DECK", "Error al cargar mazo guardado ${savedDeck.id}", e)
     }

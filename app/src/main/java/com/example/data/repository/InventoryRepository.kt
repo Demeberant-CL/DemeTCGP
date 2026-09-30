@@ -1,6 +1,7 @@
 package com.example.data.repository
 
 import com.example.data.local.AppDatabase
+import com.example.data.local.CardDao
 import com.example.data.local.InventoryCardEntity
 import com.example.data.local.InventoryDao
 import com.example.data.local.SavedDeckDao
@@ -9,12 +10,12 @@ import com.example.data.local.UserCardDao
 import com.example.data.local.UserCardEntity
 import com.example.data.model.PokemonCard
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
 
 data class CardWithInventory(
   val card: PokemonCard,
   val ownedCount: Int,
-  val isWishlist: Boolean
+  val isWishlist: Boolean,
 )
 
 data class ParsedCsvCard(
@@ -23,33 +24,47 @@ data class ParsedCsvCard(
   val name: String,
   val rarity: String,
   val quantity: Int,
-  val isRegistered: Boolean
+  val isRegistered: Boolean,
 )
 
 class InventoryRepository(
   private val inventoryDao: InventoryDao,
   private val savedDeckDao: SavedDeckDao,
-  private val userCardDao: UserCardDao
+  private val userCardDao: UserCardDao,
+  private val cardDao: CardDao,
 ) {
 
-  val inventoryFlow: Flow<List<CardWithInventory>> = inventoryDao.getAllCardsFlow().map { entities ->
-    val entityMap = entities.associateBy { it.cardId.uppercase() }
+  val inventoryFlow: Flow<List<CardWithInventory>> = combine(
+    inventoryDao.getAllCardsFlow(),
+    cardDao.getAllCards(),
+  ) { invEntities, cardEntities ->
+    val invMap = invEntities.associateBy { it.cardId.uppercase() }
+    val cardMap = cardEntities.associateBy { "${it.setId}-${it.cardId}".uppercase() }
 
-    // Merge static and dynamic registered cards
-    val allKnownCards = (CardCatalog.ALL_CARDS + entities.map { entity ->
+    val allKnownCards = (CardCatalog.ALL_CARDS + invEntities.map { entity ->
       CardCatalog.getCardById(entity.cardId) ?: CardCatalog.registerCard(
         id = entity.cardId,
         name = entity.cardName,
-        raritySymbol = entity.rarity
+        raritySymbol = entity.rarity,
+      )
+    } + cardEntities.map { entity ->
+      val fullId = "${entity.setId}-${entity.cardId}"
+      CardCatalog.getCardById(fullId) ?: CardCatalog.registerCard(
+        id = fullId,
+        name = entity.cardName,
       )
     }).distinctBy { it.id.uppercase() }
 
     allKnownCards.map { card ->
-      val ent = entityMap[card.id.uppercase()]
+      val inv = invMap[card.id.uppercase()]
+      val cardEnt = cardMap[card.id.uppercase()]
+      val count = maxOf(inv?.quantity ?: 0, cardEnt?.ownedCount ?: 0)
+      val wish = (inv?.isWishlist == true) || (cardEnt?.isWishlisted == true)
+
       CardWithInventory(
         card = card,
-        ownedCount = ent?.quantity ?: 0,
-        isWishlist = ent?.isWishlist ?: false
+        ownedCount = count,
+        isWishlist = wish,
       )
     }
   }
@@ -75,8 +90,8 @@ class InventoryRepository(
           packName = card.pack.displayName,
           rarity = card.rarity.displayName,
           quantity = 0,
-          isWishlist = true
-        )
+          isWishlist = true,
+        ),
       )
     } else {
       inventoryDao.updateCard(existing.copy(isWishlist = !existing.isWishlist))
@@ -90,11 +105,10 @@ class InventoryRepository(
     csvCards.forEach { parsed ->
       val formattedId = "${parsed.setCode}-${parsed.cardNumber}"
 
-      // Register with CardCatalog with actual CSV name!
       val registeredCard = CardCatalog.registerCard(
         id = formattedId,
         name = parsed.name,
-        raritySymbol = parsed.rarity
+        raritySymbol = parsed.rarity,
       )
 
       val existing = inventoryDao.getCardById(registeredCard.id)
@@ -106,8 +120,8 @@ class InventoryRepository(
           packName = registeredCard.pack.displayName,
           rarity = registeredCard.rarity.displayName,
           quantity = parsed.quantity,
-          isWishlist = existing?.isWishlist ?: false
-        )
+          isWishlist = existing?.isWishlist ?: false,
+        ),
       )
 
       userCardEntities.add(
@@ -119,8 +133,8 @@ class InventoryRepository(
           rarity = parsed.rarity,
           quantity = parsed.quantity,
           isRegistered = parsed.isRegistered,
-          isFavorite = existing?.isWishlist ?: false
-        )
+          isFavorite = existing?.isWishlist ?: false,
+        ),
       )
     }
 
@@ -137,7 +151,8 @@ class InventoryRepository(
       return InventoryRepository(
         inventoryDao = db.inventoryDao(),
         savedDeckDao = db.savedDeckDao(),
-        userCardDao = db.userCardDao()
+        userCardDao = db.userCardDao(),
+        cardDao = db.cardDao(),
       )
     }
   }
