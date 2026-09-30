@@ -27,6 +27,13 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+enum class CollectionFilterMode {
+  ALL,
+  OWNED,
+  MISSING,
+  WISHLIST
+}
+
 class TcgViewModel(application: Application) : AndroidViewModel(application) {
 
   private val repository: InventoryRepository
@@ -57,11 +64,8 @@ class TcgViewModel(application: Application) : AndroidViewModel(application) {
   private val _selectedPackFilter = MutableStateFlow<BoosterPack?>(null)
   val selectedPackFilter = _selectedPackFilter.asStateFlow()
 
-  private val _onlyWishlistFilter = MutableStateFlow(false)
-  val onlyWishlistFilter = _onlyWishlistFilter.asStateFlow()
-
-  private val _onlyMissingFilter = MutableStateFlow(false)
-  val onlyMissingFilter = _onlyMissingFilter.asStateFlow()
+  private val _collectionFilter = MutableStateFlow(CollectionFilterMode.ALL)
+  val collectionFilter = _collectionFilter.asStateFlow()
 
   private val _csvStatusMessage = MutableStateFlow<String?>(null)
   val csvStatusMessage = _csvStatusMessage.asStateFlow()
@@ -90,9 +94,8 @@ class TcgViewModel(application: Application) : AndroidViewModel(application) {
     inventoryList,
     _searchQuery,
     _selectedPackFilter,
-    _onlyWishlistFilter,
-    _onlyMissingFilter
-  ) { list, query, pack, onlyWishlist, onlyMissing ->
+    _collectionFilter,
+  ) { list, query, pack, filterMode ->
     list.filter { item ->
       val matchesQuery = query.isBlank() ||
         item.card.name.contains(query, ignoreCase = true) ||
@@ -100,10 +103,15 @@ class TcgViewModel(application: Application) : AndroidViewModel(application) {
         item.card.type.contains(query, ignoreCase = true)
 
       val matchesPack = pack == null || item.card.pack == pack
-      val matchesWishlist = !onlyWishlist || item.isWishlist
-      val matchesMissing = !onlyMissing || item.ownedCount == 0
 
-      matchesQuery && matchesPack && matchesWishlist && matchesMissing
+      val matchesFilterMode = when (filterMode) {
+        CollectionFilterMode.ALL -> true
+        CollectionFilterMode.OWNED -> item.ownedCount > 0
+        CollectionFilterMode.MISSING -> item.ownedCount == 0
+        CollectionFilterMode.WISHLIST -> item.isWishlist
+      }
+
+      matchesQuery && matchesPack && matchesFilterMode
     }
   }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -152,12 +160,8 @@ class TcgViewModel(application: Application) : AndroidViewModel(application) {
     _selectedPackFilter.value = pack
   }
 
-  fun toggleOnlyWishlist() {
-    _onlyWishlistFilter.value = !_onlyWishlistFilter.value
-  }
-
-  fun toggleOnlyMissing() {
-    _onlyMissingFilter.value = !_onlyMissingFilter.value
+  fun setCollectionFilter(filter: CollectionFilterMode) {
+    _collectionFilter.value = filter
   }
 
   fun toggleWishlist(cardId: String) {

@@ -57,16 +57,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import android.util.Log
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.example.R
 import com.example.data.util.TcgdexHelper
 import com.example.ui.theme.PocketBackground
 import com.example.ui.theme.PocketBluePrimary
@@ -309,9 +312,13 @@ fun DeckBuilderScreen(
                     .border(1.dp, PocketBorder, RoundedCornerShape(8.dp))
                     .background(PocketSurface)
                 ) {
+                  val imageUrl = TcgdexHelper.getCardImageUrl(entry.card.id)
+                  Log.d("DeckBuilderScreen", "AsyncImage intentando cargar la URL: '$imageUrl'")
                   AsyncImage(
-                    model = TcgdexHelper.getCardImageUrl(entry.card.id),
+                    model = imageUrl,
                     contentDescription = entry.card.name,
+                    placeholder = painterResource(R.drawable.ic_launcher_background),
+                    error = painterResource(R.drawable.ic_launcher_background),
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                   )

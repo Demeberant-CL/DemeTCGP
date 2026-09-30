@@ -65,8 +65,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -74,6 +76,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.model.BoosterPack
 import com.example.data.util.ErrorLogManager
 import com.example.ui.components.CardItemView
+import com.example.ui.components.ErrorLogViewerDialog
 import com.example.ui.theme.PocketBackground
 import com.example.ui.theme.PocketBluePrimary
 import com.example.ui.theme.PocketBorder
@@ -84,24 +87,25 @@ import com.example.ui.theme.PocketSurface
 import com.example.ui.theme.PocketTextMuted
 import com.example.ui.theme.PocketTextPrimary
 import com.example.ui.theme.PocketTextSecondary
+import com.example.ui.viewmodel.CollectionFilterMode
 import com.example.ui.viewmodel.TcgViewModel
 
 @Composable
 fun CollectionScreen(
   viewModel: TcgViewModel,
-  modifier: Modifier = Modifier
+  modifier: Modifier = Modifier,
 ) {
   val context = LocalContext.current
   val fullInventory by viewModel.inventoryList.collectAsStateWithLifecycle()
   val filteredCards by viewModel.filteredCards.collectAsStateWithLifecycle()
   val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
   val selectedPack by viewModel.selectedPackFilter.collectAsStateWithLifecycle()
-  val onlyWishlist by viewModel.onlyWishlistFilter.collectAsStateWithLifecycle()
-  val onlyMissing by viewModel.onlyMissingFilter.collectAsStateWithLifecycle()
+  val collectionFilter by viewModel.collectionFilter.collectAsStateWithLifecycle()
   val csvMessage by viewModel.csvStatusMessage.collectAsStateWithLifecycle()
 
   var showPasteDialog by remember { mutableStateOf(false) }
   var showSettingsDialog by remember { mutableStateOf(false) }
+  var showErrorLogDialog by remember { mutableStateOf(false) }
   var pasteInputText by remember { mutableStateOf("") }
 
   // Preferences from DataStore
@@ -148,7 +152,7 @@ fun CollectionScreen(
         .testTag("collection_stats_card"),
       shape = RoundedCornerShape(18.dp),
       colors = CardDefaults.cardColors(containerColor = PocketSurface),
-      border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(PocketBorder))
+      border = CardDefaults.outlinedCardBorder().copy(brush = SolidColor(PocketBorder))
     ) {
       Column(modifier = Modifier.padding(14.dp)) {
         // User Profile & Settings
@@ -191,7 +195,7 @@ fun CollectionScreen(
               Text(
                 text = "Friend ID: 9824-5495-7457-6397",
                 fontSize = 11.sp,
-                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                fontFamily = FontFamily.Monospace,
                 color = PocketTextSecondary
               )
             }
@@ -376,15 +380,14 @@ fun CollectionScreen(
       horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
       item {
-        val isAllSelected = selectedPack == null && !onlyWishlist && !onlyMissing
+        val isAllSelected = collectionFilter == CollectionFilterMode.ALL && selectedPack == null
         PocketPillChip(
           label = "Todos los Sets",
           isSelected = isAllSelected,
           activeColor = PocketBluePrimary,
           onClick = {
+            viewModel.setCollectionFilter(CollectionFilterMode.ALL)
             viewModel.setPackFilter(null)
-            if (onlyWishlist) viewModel.toggleOnlyWishlist()
-            if (onlyMissing) viewModel.toggleOnlyMissing()
           }
         )
       }
@@ -392,10 +395,10 @@ fun CollectionScreen(
       item {
         PocketPillChip(
           label = "Poseídas ($totalOwned)",
-          isSelected = onlyWishlist.not() && onlyMissing.not() && selectedPack == null,
+          isSelected = collectionFilter == CollectionFilterMode.OWNED,
           activeColor = Color(0xFF10B981),
           onClick = {
-            if (onlyMissing) viewModel.toggleOnlyMissing()
+            viewModel.setCollectionFilter(CollectionFilterMode.OWNED)
           }
         )
       }
@@ -403,18 +406,22 @@ fun CollectionScreen(
       item {
         PocketPillChip(
           label = "Faltantes (${totalCatalog - totalOwned})",
-          isSelected = onlyMissing,
+          isSelected = collectionFilter == CollectionFilterMode.MISSING,
           activeColor = PocketRed,
-          onClick = { viewModel.toggleOnlyMissing() }
+          onClick = {
+            viewModel.setCollectionFilter(CollectionFilterMode.MISSING)
+          }
         )
       }
 
       item {
         PocketPillChip(
           label = "Favoritas",
-          isSelected = onlyWishlist,
+          isSelected = collectionFilter == CollectionFilterMode.WISHLIST,
           activeColor = PocketGold,
-          onClick = { viewModel.toggleOnlyWishlist() }
+          onClick = {
+            viewModel.setCollectionFilter(CollectionFilterMode.WISHLIST)
+          }
         )
       }
 
@@ -563,18 +570,32 @@ fun CollectionScreen(
           Column {
             Text("Diagnóstico & Registro de Errores", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = PocketTextPrimary)
             Spacer(modifier = Modifier.height(6.dp))
-            OutlinedButton(
-              onClick = {
-                ErrorLogManager.exportErrorLogs(context)
-              },
-              modifier = Modifier
-                .fillMaxWidth()
-                .height(38.dp),
-              shape = RoundedCornerShape(8.dp)
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-              Icon(Icons.Filled.Download, contentDescription = null, modifier = Modifier.size(16.dp))
-              Spacer(modifier = Modifier.width(6.dp))
-              Text("Exportar Log de Errores", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+              Button(
+                onClick = { showErrorLogDialog = true },
+                modifier = Modifier
+                  .weight(1f)
+                  .height(38.dp),
+                shape = RoundedCornerShape(8.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = PocketBluePrimary)
+              ) {
+                Text("Ver Logs", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+              }
+
+              OutlinedButton(
+                onClick = { ErrorLogManager.exportErrorLogs(context) },
+                modifier = Modifier
+                  .weight(1f)
+                  .height(38.dp),
+                shape = RoundedCornerShape(8.dp)
+              ) {
+                Icon(Icons.Filled.Download, contentDescription = null, modifier = Modifier.size(14.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Exportar", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+              }
             }
           }
         }
@@ -640,6 +661,13 @@ fun CollectionScreen(
           Text("Cancelar")
         }
       }
+    )
+  }
+
+  // Diagnostic Logs Dialog
+  if (showErrorLogDialog) {
+    ErrorLogViewerDialog(
+      onDismiss = { showErrorLogDialog = false }
     )
   }
 }

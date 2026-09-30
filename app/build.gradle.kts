@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.example"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.aistudio.tcgpocket2.kxmpzq"
@@ -33,6 +33,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     testOptions {
         unitTests {
