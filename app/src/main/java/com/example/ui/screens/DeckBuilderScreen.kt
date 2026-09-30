@@ -25,6 +25,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Lock
@@ -36,6 +37,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -69,6 +72,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.example.data.repository.CardWithInventory
 import com.example.data.repository.DeckCardEntry
+import com.example.data.repository.MetaDeckAiEngine
+import com.example.data.repository.MetaDecksPreset
 import com.example.data.util.TcgdexHelper
 import com.example.ui.components.DeckQrDialog
 import com.example.ui.theme.PocketBackground
@@ -96,6 +101,7 @@ fun DeckBuilderScreen(
   var showRenameDialog by remember { mutableStateOf(value = false) }
   var showSaveDialog by remember { mutableStateOf(value = false) }
   var showQrDialog by remember { mutableStateOf(value = false) }
+  var showAiDropdown by remember { mutableStateOf(value = false) }
   var tempDeckNameInput by remember { mutableStateOf("") }
 
   val maxDeckSize = 20
@@ -128,6 +134,41 @@ fun DeckBuilderScreen(
       },
       onClearClick = { currentDeckCards.clear() },
     )
+
+    // Botón IA Meta Deck Generator con DropdownMenu
+    Box(modifier = Modifier.fillMaxWidth()) {
+      Button(
+        onClick = { showAiDropdown = true },
+        modifier = Modifier
+          .fillMaxWidth()
+          .height(40.dp),
+        shape = RoundedCornerShape(10.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = PocketBluePrimary),
+      ) {
+        Icon(Icons.Filled.AutoAwesome, contentDescription = null, modifier = Modifier.size(16.dp))
+        Spacer(modifier = Modifier.width(6.dp))
+        Text("Sugerir Mazo Meta con IA", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+      }
+
+      DropdownMenu(
+        expanded = showAiDropdown,
+        onDismissRequest = { showAiDropdown = false },
+      ) {
+        MetaDecksPreset.PRESETS.forEach { preset ->
+          DropdownMenuItem(
+            text = { Text("${preset.name} (${preset.archetype})") },
+            onClick = {
+              showAiDropdown = false
+              val result = MetaDeckAiEngine.generateMetaDeckWithAlternatives(preset, inventory)
+              deckName = result.deckName
+              currentDeckCards.clear()
+              currentDeckCards.addAll(result.entries)
+              Toast.makeText(context, "¡Mazo '${result.deckName}' generado por IA! Sustitutos: ${result.replacementCount}", Toast.LENGTH_LONG).show()
+            },
+          )
+        }
+      }
+    }
 
     // COMPOSICIÓN ACTUAL DEL MAZO (Baraja interactiva superior)
     DeckCurrentComposition(
