@@ -38,7 +38,6 @@ import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -53,6 +52,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -73,7 +73,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.data.model.BoosterPack
 import com.example.data.util.ErrorLogManager
 import com.example.ui.components.CardItemView
 import com.example.ui.components.ErrorLogViewerDialog
@@ -99,7 +98,6 @@ fun CollectionScreen(
   val fullInventory by viewModel.inventoryList.collectAsStateWithLifecycle()
   val filteredCards by viewModel.filteredCards.collectAsStateWithLifecycle()
   val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
-  val selectedPack by viewModel.selectedPackFilter.collectAsStateWithLifecycle()
   val collectionFilter by viewModel.collectionFilter.collectAsStateWithLifecycle()
   val csvMessage by viewModel.csvStatusMessage.collectAsStateWithLifecycle()
 
@@ -380,7 +378,7 @@ fun CollectionScreen(
       horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
       item {
-        val isAllSelected = collectionFilter == CollectionFilterMode.ALL && selectedPack == null
+        val isAllSelected = collectionFilter == CollectionFilterMode.ALL
         PocketPillChip(
           label = "Todos los Sets",
           isSelected = isAllSelected,
@@ -399,6 +397,7 @@ fun CollectionScreen(
           activeColor = Color(0xFF10B981),
           onClick = {
             viewModel.setCollectionFilter(CollectionFilterMode.OWNED)
+            viewModel.setPackFilter(null)
           }
         )
       }
@@ -410,6 +409,7 @@ fun CollectionScreen(
           activeColor = PocketRed,
           onClick = {
             viewModel.setCollectionFilter(CollectionFilterMode.MISSING)
+            viewModel.setPackFilter(null)
           }
         )
       }
@@ -421,34 +421,8 @@ fun CollectionScreen(
           activeColor = PocketGold,
           onClick = {
             viewModel.setCollectionFilter(CollectionFilterMode.WISHLIST)
+            viewModel.setPackFilter(null)
           }
-        )
-      }
-
-      item {
-        PocketPillChip(
-          label = "Charizard",
-          isSelected = selectedPack == BoosterPack.CHARIZARD,
-          activeColor = Color(0xFFEA580C),
-          onClick = { viewModel.setPackFilter(if (selectedPack == BoosterPack.CHARIZARD) null else BoosterPack.CHARIZARD) }
-        )
-      }
-
-      item {
-        PocketPillChip(
-          label = "Mewtwo",
-          isSelected = selectedPack == BoosterPack.MEWTWO,
-          activeColor = Color(0xFF9333EA),
-          onClick = { viewModel.setPackFilter(if (selectedPack == BoosterPack.MEWTWO) null else BoosterPack.MEWTWO) }
-        )
-      }
-
-      item {
-        PocketPillChip(
-          label = "Pikachu",
-          isSelected = selectedPack == BoosterPack.PIKACHU,
-          activeColor = Color(0xFFCA8A04),
-          onClick = { viewModel.setPackFilter(if (selectedPack == BoosterPack.PIKACHU) null else BoosterPack.PIKACHU) }
         )
       }
     }
@@ -496,125 +470,111 @@ fun CollectionScreen(
     AlertDialog(
       onDismissRequest = { showSettingsDialog = false },
       title = {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-          Icon(Icons.Filled.Settings, contentDescription = null, tint = PocketBluePrimary)
-          Spacer(modifier = Modifier.width(8.dp))
-          Text("Ajustes y Preferencias", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        }
+          Surface(color = MaterialTheme.colorScheme.background) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+              Icon(Icons.Filled.Settings, contentDescription = null, tint = PocketBluePrimary)
+              Spacer(modifier = Modifier.width(8.dp))
+              Text(
+                text = "Ajustes y Preferencias",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+              )
+            }
+          }
       },
       text = {
-        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-          // Language selector
-          Column {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-              Icon(Icons.Filled.Translate, contentDescription = null, tint = PocketTextSecondary, modifier = Modifier.size(16.dp))
-              Spacer(modifier = Modifier.width(6.dp))
-              Text("Idioma Principal (DataStore)", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = PocketTextPrimary)
-            }
-            Spacer(modifier = Modifier.height(6.dp))
-            listOf(
-              "es" to "Español Neutro",
-              "en" to "English",
-              "ja" to "日本語"
-            ).forEach { (code, label) ->
-              Row(
-                modifier = Modifier
-                  .fillMaxWidth()
-                  .clip(RoundedCornerShape(8.dp))
-                  .clickable { viewModel.setLanguage(code) }
-                  .padding(vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-              ) {
-                RadioButton(
-                  selected = userPreferences.language == code,
-                  onClick = { viewModel.setLanguage(code) }
+          Surface(color = MaterialTheme.colorScheme.background) {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+              // Theme selector
+              Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                  Icon(Icons.Filled.Palette, contentDescription = null, tint = MaterialTheme.colorScheme.onBackground, modifier = Modifier.size(16.dp))
+                  Spacer(modifier = Modifier.width(6.dp))
+                  Text(
+                    text = "Tema Visual & Modo Oscuro",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                  )
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+                listOf(
+                  "dark" to "Neón Oscuro",
+                  "blue" to "Azul Pokémon",
+                  "light" to "Modo Claro"
+                ).forEach { (themeKey, label) ->
+                  Row(
+                    modifier = Modifier
+                      .fillMaxWidth()
+                      .clip(RoundedCornerShape(8.dp))
+                      .clickable { viewModel.setThemeName(themeKey) }
+                      .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                  ) {
+                    RadioButton(
+                      selected = userPreferences.themeName == themeKey,
+                      onClick = { viewModel.setThemeName(themeKey) }
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                      text = label,
+                      fontSize = 13.sp,
+                      color = MaterialTheme.colorScheme.onBackground
+                    )
+                  }
+                }
+              }
+
+              // Error Logging Export Section
+              Column {
+                Text(
+                  text = "Diagnóstico & Registro de Errores",
+                  fontSize = 12.sp,
+                  fontWeight = FontWeight.Bold,
+                  color = MaterialTheme.colorScheme.onBackground
                 )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(label, fontSize = 13.sp, color = PocketTextPrimary)
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(
+                  modifier = Modifier.fillMaxWidth(),
+                  horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                  Button(
+                    onClick = { showErrorLogDialog = true },
+                    modifier = Modifier
+                      .weight(1f)
+                      .height(38.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = PocketBluePrimary)
+                  ) {
+                    Text("Ver Logs", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                  }
+
+                  OutlinedButton(
+                    onClick = { ErrorLogManager.exportErrorLogs(context) },
+                    modifier = Modifier
+                      .weight(1f)
+                      .height(38.dp),
+                    shape = RoundedCornerShape(8.dp)
+                  ) {
+                    Icon(Icons.Filled.Download, contentDescription = null, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Exportar", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                  }
+                }
               }
             }
           }
-
-          // Theme selector
-          Column {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-              Icon(Icons.Filled.Palette, contentDescription = null, tint = PocketTextSecondary, modifier = Modifier.size(16.dp))
-              Spacer(modifier = Modifier.width(6.dp))
-              Text("Tema Visual & Modo Oscuro (DataStore)", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = PocketTextPrimary)
-            }
-            Spacer(modifier = Modifier.height(6.dp))
-            listOf(
-              "dark" to "Neón Oscuro (Por Defecto)",
-              "blue" to "Azul Pokémon Clásico",
-              "light" to "Modo Claro"
-            ).forEach { (themeKey, label) ->
-              Row(
-                modifier = Modifier
-                  .fillMaxWidth()
-                  .clip(RoundedCornerShape(8.dp))
-                  .clickable { viewModel.setThemeName(themeKey) }
-                  .padding(vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-              ) {
-                RadioButton(
-                  selected = userPreferences.themeName == themeKey,
-                  onClick = { viewModel.setThemeName(themeKey) }
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(label, fontSize = 13.sp, color = PocketTextPrimary)
-              }
-            }
-          }
-
-          // Error Logging Export Section
-          Column {
-            Text("Diagnóstico & Registro de Errores", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = PocketTextPrimary)
-            Spacer(modifier = Modifier.height(6.dp))
-            Row(
-              modifier = Modifier.fillMaxWidth(),
-              horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-              Button(
-                onClick = { showErrorLogDialog = true },
-                modifier = Modifier
-                  .weight(1f)
-                  .height(38.dp),
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = PocketBluePrimary)
-              ) {
-                Text("Ver Logs", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-              }
-
-              OutlinedButton(
-                onClick = { ErrorLogManager.exportErrorLogs(context) },
-                modifier = Modifier
-                  .weight(1f)
-                  .height(38.dp),
-                shape = RoundedCornerShape(8.dp)
-              ) {
-                Icon(Icons.Filled.Download, contentDescription = null, modifier = Modifier.size(14.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Exportar", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-              }
-            }
-          }
-        }
       },
       confirmButton = {
         Button(
-          onClick = {
-            showSettingsDialog = false
-          },
+          onClick = { showSettingsDialog = false },
           colors = ButtonDefaults.buttonColors(containerColor = PocketBluePrimary)
         ) {
           Text("Listo")
         }
       },
-      dismissButton = {
-        TextButton(onClick = { showSettingsDialog = false }) {
-          Text("Cerrar")
-        }
-      }
+      containerColor = MaterialTheme.colorScheme.background
     )
   }
 

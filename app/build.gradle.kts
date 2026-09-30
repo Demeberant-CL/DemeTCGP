@@ -57,6 +57,12 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.coil.compose)
 
+    // AndroidX AppCompat for Locale / App Locales support
+    implementation("androidx.appcompat:appcompat:1.7.0")
+
+    // ZXing QR Code Core Dependency
+    implementation("com.google.zxing:core:3.5.3")
+
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)

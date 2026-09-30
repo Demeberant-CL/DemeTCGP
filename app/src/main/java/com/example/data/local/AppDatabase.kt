@@ -9,15 +9,17 @@ import androidx.room.RoomDatabase
   entities = [
     InventoryCardEntity::class,
     SavedDeckEntity::class,
-    UserCardEntity::class
+    UserCardEntity::class,
+    CardEntity::class,
   ],
-  version = 3,
-  exportSchema = false
+  version = 4,
+  exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {
   abstract fun inventoryDao(): InventoryDao
   abstract fun savedDeckDao(): SavedDeckDao
   abstract fun userCardDao(): UserCardDao
+  abstract fun cardDao(): CardDao
 
   companion object {
     @Volatile
@@ -28,7 +30,7 @@ abstract class AppDatabase : RoomDatabase() {
         val instance = Room.databaseBuilder(
           context.applicationContext,
           AppDatabase::class.java,
-          "tcg_pocket_inventory.db"
+          "tcg_pocket_inventory.db",
         )
           .fallbackToDestructiveMigration(dropAllTables = true)
           .build()

@@ -71,11 +71,36 @@ object ErrorLogManager {
     }
   }
 
+  /**
+   * Escritura síncrona con truncado automático a un máximo de 200 líneas (mantiene las más recientes).
+   */
   private fun writeLogSync(context: Context, entry: String) {
     try {
       val file = File(context.filesDir, FILE_NAME)
-      FileWriter(file, true).use { writer ->
-        writer.append(entry)
+      val existingLines = if (file.exists()) {
+        try {
+          file.readLines().toMutableList()
+        } catch (_: Exception) {
+          mutableListOf()
+        }
+      } else {
+        mutableListOf()
+      }
+
+      existingLines.add(entry.trimEnd('\n'))
+
+      // Truncar si supera las 200 líneas (mantener las últimas 200)
+      val maxLines = 200
+      val linesToWrite = if (existingLines.size > maxLines) {
+        existingLines.takeLast(maxLines)
+      } else {
+        existingLines
+      }
+
+      FileWriter(file, false).use { writer ->
+        for (line in linesToWrite) {
+          writer.append(line).append("\n")
+        }
         writer.flush()
       }
     } catch (e: Exception) {
@@ -128,7 +153,7 @@ object ErrorLogManager {
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
       }
 
-      val chooser = Intent.createChooser(shareIntent, "Exportار Log de Errores")
+      val chooser = Intent.createChooser(shareIntent, "Exportar Log de Errores")
       chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
       context.startActivity(chooser)
     } catch (e: Exception) {

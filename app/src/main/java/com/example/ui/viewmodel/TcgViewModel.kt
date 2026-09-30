@@ -139,12 +139,6 @@ class TcgViewModel(application: Application) : AndroidViewModel(application) {
     }
   }
 
-  fun setLanguage(languageCode: String) {
-    viewModelScope.launch {
-      preferencesRepository.setLanguage(languageCode)
-    }
-  }
-
   fun setThemeName(themeName: String) {
     viewModelScope.launch {
       preferencesRepository.setThemeName(themeName)
@@ -336,6 +330,26 @@ class TcgViewModel(application: Application) : AndroidViewModel(application) {
         repository.deleteDeck(deckId)
       } catch (e: Exception) {
         ErrorLogManager.logError(getApplication(), "DELETE_DECK", "Error al eliminar mazo $deckId", e)
+      }
+    }
+  }
+
+  fun saveCustomDeck(customName: String, entries: List<DeckCardEntry>) {
+    viewModelScope.launch {
+      try {
+        val serializedCards = entries.joinToString(";") { "${it.card.id}:${it.count}" }
+        val totalCount = entries.sumOf { it.count }
+        val entity = SavedDeckEntity(
+          name = customName,
+          archetype = "Personalizado",
+          strategy = "Mazo customizado por el usuario",
+          cardListSerialized = serializedCards,
+          totalCards = totalCount,
+        )
+        repository.saveDeck(entity)
+        _csvStatusMessage.value = "¡Mazo '$customName' guardado correctamente!"
+      } catch (e: Exception) {
+        ErrorLogManager.logError(getApplication(), "SAVE_CUSTOM_DECK", "Error al guardar mazo custom", e)
       }
     }
   }

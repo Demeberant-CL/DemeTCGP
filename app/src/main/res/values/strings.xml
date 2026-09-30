@@ -1,3 +1,17 @@
 <resources>
     <string name="app_name">Demeberant TCG Pocket</string>
+    <string name="nav_collection">Colección</string>
+    <string name="nav_decks">Mazos</string>
+    <string name="nav_meta">Meta</string>
+    <string name="nav_packs">Sobres</string>
+    <string name="nav_probability">Cálculo</string>
+    <string name="profile_level">Lv. 34</string>
+    <string name="settings_title">Ajustes y Preferencias</string>
+    <string name="language_title">Idioma Principal (ES / EN)</string>
+    <string name="theme_title">Tema Visual &amp; Modo Oscuro</string>
+    <string name="diagnostics_title">Diagnóstico &amp; Registro de Errores</string>
+    <string name="view_logs">Ver Logs</string>
+    <string name="export_logs">Exportar</string>
+    <string name="ready">Listo</string>
+    <string name="close">Cerrar</string>
 </resources>

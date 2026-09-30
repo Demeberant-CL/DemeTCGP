@@ -25,6 +25,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -65,11 +66,17 @@ class MainActivity : ComponentActivity() {
               tonalElevation = 6.dp,
               modifier = Modifier.testTag("main_bottom_nav")
             ) {
+              val navCollection = stringResource(id = R.string.nav_collection)
+              val navDecks = stringResource(id = R.string.nav_decks)
+              val navMeta = stringResource(id = R.string.nav_meta)
+              val navPacks = stringResource(id = R.string.nav_packs)
+              val navProbability = stringResource(id = R.string.nav_probability)
+
               NavigationBarItem(
                 selected = selectedTabIndex == 0,
                 onClick = { selectedTabIndex = 0 },
-                icon = { Icon(Icons.Filled.Collections, contentDescription = "Colección") },
-                label = { Text("Colección", fontSize = 10.sp, fontWeight = if (selectedTabIndex == 0) FontWeight.Bold else FontWeight.Normal) },
+                icon = { Icon(Icons.Filled.Collections, contentDescription = navCollection) },
+                label = { Text(navCollection, fontSize = 10.sp, fontWeight = if (selectedTabIndex == 0) FontWeight.Bold else FontWeight.Normal) },
                 colors = NavigationBarItemDefaults.colors(
                   selectedIconColor = PocketBluePrimary,
                   selectedTextColor = PocketBluePrimary,
@@ -83,8 +90,8 @@ class MainActivity : ComponentActivity() {
               NavigationBarItem(
                 selected = selectedTabIndex == 1,
                 onClick = { selectedTabIndex = 1 },
-                icon = { Icon(Icons.Filled.AutoAwesome, contentDescription = "Mazos") },
-                label = { Text("Mazos", fontSize = 10.sp, fontWeight = if (selectedTabIndex == 1) FontWeight.Bold else FontWeight.Normal) },
+                icon = { Icon(Icons.Filled.AutoAwesome, contentDescription = navDecks) },
+                label = { Text(navDecks, fontSize = 10.sp, fontWeight = if (selectedTabIndex == 1) FontWeight.Bold else FontWeight.Normal) },
                 colors = NavigationBarItemDefaults.colors(
                   selectedIconColor = PocketBluePrimary,
                   selectedTextColor = PocketBluePrimary,
@@ -98,8 +105,8 @@ class MainActivity : ComponentActivity() {
               NavigationBarItem(
                 selected = selectedTabIndex == 2,
                 onClick = { selectedTabIndex = 2 },
-                icon = { Icon(Icons.Filled.Insights, contentDescription = "Meta") },
-                label = { Text("Meta", fontSize = 10.sp, fontWeight = if (selectedTabIndex == 2) FontWeight.Bold else FontWeight.Normal) },
+                icon = { Icon(Icons.Filled.Insights, contentDescription = navMeta) },
+                label = { Text(navMeta, fontSize = 10.sp, fontWeight = if (selectedTabIndex == 2) FontWeight.Bold else FontWeight.Normal) },
                 colors = NavigationBarItemDefaults.colors(
                   selectedIconColor = PocketBluePrimary,
                   selectedTextColor = PocketBluePrimary,
@@ -113,8 +120,8 @@ class MainActivity : ComponentActivity() {
               NavigationBarItem(
                 selected = selectedTabIndex == 3,
                 onClick = { selectedTabIndex = 3 },
-                icon = { Icon(Icons.Filled.CardGiftcard, contentDescription = "Sobres") },
-                label = { Text("Sobres", fontSize = 10.sp, fontWeight = if (selectedTabIndex == 3) FontWeight.Bold else FontWeight.Normal) },
+                icon = { Icon(Icons.Filled.CardGiftcard, contentDescription = navPacks) },
+                label = { Text(navPacks, fontSize = 10.sp, fontWeight = if (selectedTabIndex == 3) FontWeight.Bold else FontWeight.Normal) },
                 colors = NavigationBarItemDefaults.colors(
                   selectedIconColor = PocketBluePrimary,
                   selectedTextColor = PocketBluePrimary,
@@ -128,8 +135,8 @@ class MainActivity : ComponentActivity() {
               NavigationBarItem(
                 selected = selectedTabIndex == 4,
                 onClick = { selectedTabIndex = 4 },
-                icon = { Icon(Icons.Filled.Calculate, contentDescription = "Probabilidad") },
-                label = { Text("Cálculo", fontSize = 10.sp, fontWeight = if (selectedTabIndex == 4) FontWeight.Bold else FontWeight.Normal) },
+                icon = { Icon(Icons.Filled.Calculate, contentDescription = navProbability) },
+                label = { Text(navProbability, fontSize = 10.sp, fontWeight = if (selectedTabIndex == 4) FontWeight.Bold else FontWeight.Normal) },
                 colors = NavigationBarItemDefaults.colors(
                   selectedIconColor = PocketBluePrimary,
                   selectedTextColor = PocketBluePrimary,
